@@ -1,0 +1,17 @@
+# PACE26 Track 1 - basic CI pipeline (smoke check that the pipeline runs)
+trigger:
+  branches:
+    include:
+      - develop
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+  - bash: |
+      echo "PACE26 CI pipeline is configured and running"
+      echo "Repo   : $(Build.Repository.Name)"
+      echo "Branch : $(Build.SourceBranch)"
+    displayName: "CI smoke check"
