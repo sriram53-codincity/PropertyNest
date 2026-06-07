@@ -12,9 +12,14 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from sqlalchemy.pool import NullPool
 
+import os
+
 # Test Database URLs
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:9715907196@localhost:5432/homelease_test"
-TEST_MONGO_URL = "mongodb+srv://mathimaran12345678_db_user:9715907196@cluster0.evomuvp.mongodb.net/?appName=Cluster0"
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+asyncpg://postgres:9715907196@localhost:5432/homelease_test")
+if os.environ.get("PG_PASSWORD") == "password":
+    TEST_DATABASE_URL = "postgresql+asyncpg://postgres:password@localhost:5432/homelease_test"
+
+TEST_MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://mathimaran12345678_db_user:9715907196@cluster0.evomuvp.mongodb.net/?appName=Cluster0")
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 TestingSessionLocal = sessionmaker(
