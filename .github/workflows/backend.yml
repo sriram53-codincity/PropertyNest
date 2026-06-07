@@ -46,7 +46,7 @@ jobs:
       run: |
         python scripts/test_suite.py || echo "Tests skipped due to missing DB credentials in CI environment"
 
-    - name: Verify Hackathon Requirements
+    - name: Verify PACE26 Requirements
       run: |
         chmod +x scripts/verify_requirements.sh
         bash scripts/verify_requirements.sh
