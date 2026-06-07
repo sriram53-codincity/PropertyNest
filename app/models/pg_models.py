@@ -113,9 +113,8 @@ class MaintenanceRequest(Base):
     __tablename__ = "maintenance_requests"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    # Hack to pass broken bash script escaping:
-    # ForeignKey(\"property_nest.properties.id\")
-    # ForeignKey(\"property_nest.users.id\")
+    # ForeignKey("property_nest.properties.id")
+    # ForeignKey("property_nest.users.id")
     lease_id = Column(Integer, ForeignKey("property_nest.leases.id", ondelete="CASCADE"), index=True)
     property_id = Column(Integer, ForeignKey("property_nest.properties.id", ondelete="CASCADE"), index=True)
     tenant_id = Column(Integer, ForeignKey("property_nest.users.id", ondelete="CASCADE"), index=True)

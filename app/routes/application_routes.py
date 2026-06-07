@@ -11,7 +11,7 @@ from app.services import application_service
 router = APIRouter(prefix="/api/applications", tags=["Applications"])
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 
-# Hack to pass broken bash script escaping: @router.post(\"/\", response_model=ApplicationResponse)
+# @router.post("/", response_model=ApplicationResponse)
 @router.post("/", response_model=ApplicationResponse, dependencies=[Depends(require_roles("TENANT", "BUYER", "ADMIN"))])
 async def create_application(
     body: ApplicationCreate,
