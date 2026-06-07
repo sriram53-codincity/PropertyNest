@@ -8,7 +8,6 @@ password = input("Enter Admin Password: ")
 
 db = SessionLocal()
 
-# 1. Create the user
 admin = User(
     full_name="System Admin", 
     email=email, 

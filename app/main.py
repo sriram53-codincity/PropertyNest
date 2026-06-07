@@ -26,11 +26,9 @@ import app.models.pg_models
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS property_nest"))
-        conn.commit()
-    
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS property_nest"))
+        await conn.run_sync(Base.metadata.create_all)
     
     await init_beanie(database=mongo_db, document_models=[PropertyDetails])
     yield

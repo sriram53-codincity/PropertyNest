@@ -1,16 +1,26 @@
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import Optional
-from app.models.pg_models import Appointment
+from app.models.pg_models import Appointment, Property
 from app.schemas.appointment_schema import AppointmentCreate
-from app.schemas.common_schema import StatusUpdate
+from app.schemas.common_schema import AppointmentStatusUpdate
 
 def jitsi_url(appointment_id: str) -> str:
     return f"https://meet.jit.si/homelease-{appointment_id}"
 
-def book_appointment(body: AppointmentCreate, user_id: Optional[str], db: Session):
+async def book_appointment(body: AppointmentCreate, user_id: str, db: AsyncSession):
+    owner_id = None
+    if body.property_id:
+        result = await db.execute(select(Property).filter(Property.id == body.property_id))
+        prop = result.scalars().first()
+        if prop:
+            owner_id = prop.owner_id
+
     new_appt = Appointment(
-        user_id=user_id,
+        user_id=int(user_id),
+        property_id=body.property_id,
+        owner_id=owner_id,
         full_name=body.full_name,
         email=body.email,
         phone=body.phone,
@@ -19,28 +29,40 @@ def book_appointment(body: AppointmentCreate, user_id: Optional[str], db: Sessio
         preferred_time=body.preferred_time,
         additional_notes=body.additional_notes
     )
-    db.add(new_appt)
-    db.commit()
-    db.refresh(new_appt)
+    try:
+        db.add(new_appt)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+        
+    await db.refresh(new_appt)
     
-    return {"message": "Appointment booked! Admin will confirm shortly.", "appointment": new_appt}
+    return {"message": "Appointment booked! Admin will confirm shortly.", "appointment_id": str(new_appt.id)}
 
-def get_my_appointments(user_id: str, db: Session):
-    return db.query(Appointment).filter(Appointment.user_id == user_id).order_by(Appointment.created_at.desc()).all()
+async def get_my_appointments(user_id: str, db: AsyncSession):
+    result = await db.execute(select(Appointment).filter(Appointment.user_id == int(user_id)).order_by(Appointment.created_at.desc()))
+    return result.scalars().all()
 
-def get_all_appointments(status: Optional[str], db: Session):
-    query = db.query(Appointment)
+async def get_owner_appointments(owner_id: str, db: AsyncSession):
+    result = await db.execute(select(Appointment).filter(Appointment.owner_id == int(owner_id)).order_by(Appointment.created_at.desc()))
+    return result.scalars().all()
+
+async def get_all_appointments(status: Optional[str], db: AsyncSession):
+    query = select(Appointment)
     if status:
         query = query.filter(Appointment.status == status.upper())
-    return query.order_by(Appointment.created_at.desc()).all()
+    result = await db.execute(query.order_by(Appointment.created_at.desc()))
+    return result.scalars().all()
 
-def update_appointment_status(appointment_id: str, body: StatusUpdate, db: Session):
-    if body.status not in ("CONFIRMED", "REJECTED"):
-        raise HTTPException(400, "Status must be CONFIRMED or REJECTED")
+async def update_appointment_status(appointment_id: str, body: AppointmentStatusUpdate, db: AsyncSession):
+    if body.status not in ("CONFIRMED", "REJECTED", "COMPLETED", "CANCELLED"):
+        raise HTTPException(400, "Invalid status")
     if body.status == "REJECTED" and not body.reason:
         raise HTTPException(400, "Reason required when rejecting")
 
-    appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    result = await db.execute(select(Appointment).filter(Appointment.id == int(appointment_id)))
+    appt = result.scalars().first()
     if not appt:
         raise HTTPException(404, "Appointment not found")
     if appt.status != "PENDING":
@@ -51,21 +73,31 @@ def update_appointment_status(appointment_id: str, body: StatusUpdate, db: Sessi
     appt.status = body.status
     appt.meet_url = meet_url
     appt.reason = body.reason
-    db.commit()
-    db.refresh(appt)
-
+    
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+    
     msg = f"Confirmed! Join here: {meet_url}" if meet_url else "Rejected."
-    return {"message": msg, "appointment": appt}
+    return {"message": msg, "appointment_id": str(appt.id)}
 
-def delete_appointment(appointment_id: str, user_id: str, db: Session):
-    appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+async def delete_appointment(appointment_id: str, user_id: str, db: AsyncSession):
+    result = await db.execute(select(Appointment).filter(Appointment.id == int(appointment_id)))
+    appt = result.scalars().first()
     if not appt:
         raise HTTPException(404, "Appointment not found")
-    if str(appt.user_id) != user_id:
+    if appt.user_id != int(user_id):
         raise HTTPException(403, "You can only delete your own appointments")
     if appt.status != "PENDING":
         raise HTTPException(400, "Only PENDING appointments can be deleted")
     
-    db.delete(appt)
-    db.commit()
+    try:
+        await db.delete(appt)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+        
     return {"message": "Appointment deleted successfully"}

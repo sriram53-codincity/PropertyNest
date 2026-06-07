@@ -1,0 +1,48 @@
+{
+  "hash": "42018a51",
+  "configHash": "7fec00df",
+  "lockfileHash": "76882691",
+  "browserHash": "dd777a3e",
+  "optimized": {
+    "axios": {
+      "src": "../../node_modules/axios/index.js",
+      "file": "axios.js",
+      "fileHash": "c32bad8a",
+      "needsInterop": false
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "004ec5b9",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "ca4ae020",
+      "needsInterop": false
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "cd0c1237",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "b98f790f",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-B-1-B7_t": {
+      "file": "chunk-B-1-B7_t.js",
+      "isDynamicEntry": false
+    },
+    "react-dom-Br2l1Z8p": {
+      "file": "react-dom-Br2l1Z8p.js",
+      "isDynamicEntry": false
+    }
+  }
+}

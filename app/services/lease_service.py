@@ -1,23 +1,50 @@
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, or_
 from sqlalchemy.orm import aliased
 from dateutil.relativedelta import relativedelta
 from app.models.pg_models import Lease, Application, Property, User
 from app.schemas.lease_schema import LeaseCreate
 
-def create_lease(body: LeaseCreate, db: Session):
-    app = db.query(Application).filter(Application.id == body.application_id).first()
+async def create_lease(body: LeaseCreate, user_id: str, roles: list, db: AsyncSession):
+    """
+    Create a new lease for an approved rental application.
+    
+    Args:
+        body (LeaseCreate): The lease creation details.
+        user_id (str): The current user's ID.
+        roles (list): The current user's roles.
+        db (AsyncSession): The database session.
+        
+    Raises:
+        HTTPException 404: If the application or property is not found.
+        HTTPException 400: If the application is not approved or a lease already exists.
+        HTTPException 403: If the user does not own the property.
+        
+    Returns:
+        dict: A message and the newly created lease ID.
+    """
+    result = await db.execute(select(Application).filter(Application.id == int(body.application_id)))
+    app = result.scalars().first()
     
     if not app:
         raise HTTPException(404, "Application not found")
     if app.status != "APPROVED":
         raise HTTPException(400, "Application must be APPROVED to create a lease")
 
-    existing_lease = db.query(Lease).filter(Lease.application_id == body.application_id).first()
+    result = await db.execute(select(Property).filter(Property.id == app.property_id))
+    prop = result.scalars().first()
+    
+    if not prop:
+        raise HTTPException(404, "Property not found")
+        
+    if str(prop.owner_id) != user_id and "ADMIN" not in roles:
+        raise HTTPException(403, "You do not own this property")
+
+    result = await db.execute(select(Lease).filter(Lease.application_id == int(body.application_id)))
+    existing_lease = result.scalars().first()
     if existing_lease:
         raise HTTPException(400, "A lease already exists for this application")
-
-    prop = db.query(Property).filter(Property.id == app.property_id).first()
 
     start_date = app.move_in_date
     end_date   = start_date + relativedelta(months=int(app.lease_duration))
@@ -26,25 +53,39 @@ def create_lease(body: LeaseCreate, db: Session):
         property_id=app.property_id,
         tenant_id=app.applicant_id,
         owner_id=prop.owner_id,
-        application_id=body.application_id,
+        application_id=int(body.application_id),
         start_date=start_date,
         end_date=end_date,
         monthly_rent=prop.monthly_rent
     )
-    db.add(new_lease)
+    
+    try:
+        db.add(new_lease)
+        prop.is_available = False
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+        
+    await db.refresh(new_lease)
+    return {"message": "Lease created successfully", "lease_id": str(new_lease.id)}
 
-    prop.is_available = False
 
-    db.commit()
-    db.refresh(new_lease)
-    return {"message": "Lease created successfully", "lease": new_lease}
-
-
-def get_my_leases(user_id: str, db: Session):
+async def get_my_leases(user_id: str, db: AsyncSession):
+    """
+    Retrieve all leases where the user is either the tenant or the owner.
+    
+    Args:
+        user_id (str): The current user's ID.
+        db (AsyncSession): The database session.
+        
+    Returns:
+        list: A list of lease details.
+    """
     Tenant = aliased(User)
     Owner = aliased(User)
 
-    results = db.query(
+    query = select(
         Lease,
         Property.title.label("property_title"),
         Property.city,
@@ -54,9 +95,11 @@ def get_my_leases(user_id: str, db: Session):
     ).join(Property, Lease.property_id == Property.id)\
      .join(Tenant, Lease.tenant_id == Tenant.id)\
      .join(Owner, Lease.owner_id == Owner.id)\
-     .filter((Lease.tenant_id == user_id) | (Lease.owner_id == user_id))\
-     .order_by(Lease.created_at.desc())\
-     .all()
+     .filter(or_(Lease.tenant_id == int(user_id), Lease.owner_id == int(user_id)))\
+     .order_by(Lease.created_at.desc())
+
+    result = await db.execute(query)
+    results = result.all()
 
     leases = []
     for lease, property_title, city, tenant_name, tenant_email, owner_name in results:
@@ -74,11 +117,27 @@ def get_my_leases(user_id: str, db: Session):
     return leases
 
 
-def get_lease(lease_id: str, user_id: str, roles: list, db: Session):
+async def get_lease(lease_id: str, user_id: str, roles: list, db: AsyncSession):
+    """
+    Retrieve the details of a single lease.
+    
+    Args:
+        lease_id (str): The ID of the lease.
+        user_id (str): The current user's ID.
+        roles (list): The current user's roles.
+        db (AsyncSession): The database session.
+        
+    Raises:
+        HTTPException 404: If the lease is not found.
+        HTTPException 403: If the user is neither the tenant nor the owner of the lease.
+        
+    Returns:
+        dict: The lease details.
+    """
     Tenant = aliased(User)
     Owner = aliased(User)
 
-    result = db.query(
+    query = select(
         Lease,
         Property.title.label("property_title"),
         Property.city,
@@ -88,13 +147,15 @@ def get_lease(lease_id: str, user_id: str, roles: list, db: Session):
     ).join(Property, Lease.property_id == Property.id)\
      .join(Tenant, Lease.tenant_id == Tenant.id)\
      .join(Owner, Lease.owner_id == Owner.id)\
-     .filter(Lease.id == lease_id)\
-     .first()
+     .filter(Lease.id == int(lease_id))
 
-    if not result:
+    result = await db.execute(query)
+    row = result.first()
+
+    if not row:
         raise HTTPException(404, "Lease not found")
 
-    lease, property_title, city, tenant_name, tenant_email, owner_name = result
+    lease, property_title, city, tenant_name, tenant_email, owner_name = row
     
     if str(lease.tenant_id) != user_id and str(lease.owner_id) != user_id and "ADMIN" not in roles:
         raise HTTPException(403, "You do not have access to this lease")

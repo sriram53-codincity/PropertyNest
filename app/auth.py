@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "homelease-secret-key-2024")
+SECRET_KEY = os.getenv("SECRET_KEY", "homelease-super-secret-key-2024-secure")
 security   = HTTPBearer()
 
 

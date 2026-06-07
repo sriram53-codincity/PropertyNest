@@ -9,3 +9,8 @@ python-multipart
 python-dateutil
 sqlalchemy
 beanie
+asyncpg
+email-validator
+pytest
+httpx
+pytest-asyncio

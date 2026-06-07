@@ -1,35 +1,29 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+import urllib.parse
+from sqlalchemy import MetaData
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # ── PostgreSQL Setup (SQLAlchemy) ──────────────────────────────
-import urllib.parse
 PG_USER = os.getenv("PG_USER", "postgres")
 PG_PASSWORD = urllib.parse.quote_plus(os.getenv("PG_PASSWORD", "password"))
 PG_HOST = os.getenv("PG_HOST", "localhost")
 PG_PORT = os.getenv("PG_PORT", 5432)
 PG_DATABASE = os.getenv("PG_DATABASE", "homelease")
 
-SQLALCHEMY_DATABASE_URL = f"postgresql://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
-from sqlalchemy import MetaData
+SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False)
+AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 metadata = MetaData(schema="property_nest")
 Base = declarative_base(metadata=metadata)
 
 # Dependency to get DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db() -> AsyncSession:
+    async with AsyncSessionLocal() as session:
+        yield session
 
 
 # ── MongoDB Setup (Beanie / Motor) ─────────────────────────────

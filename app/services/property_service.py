@@ -1,15 +1,18 @@
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc, asc
 from typing import Optional
-from app.models.pg_models import Property
+from app.models.pg_models import Property, User
 from app.models.mongo_models import PropertyDetails
+from beanie.operators import In
 from app.schemas.property_schema import PropertyCreate, PropertyUpdate
 
-def to_dict_prop(prop, mongo_detail: Optional[PropertyDetails]):
+def to_dict_prop(prop, mongo_detail: Optional[PropertyDetails], owner=None):
     d = {
         "id": str(prop.id),
         "owner_id": str(prop.owner_id),
+        "owner_name": getattr(owner, "full_name", "Unknown"),
+        "owner_email": getattr(owner, "email", "Unknown"),
         "title": prop.title,
         "city": prop.city,
         "property_type": prop.property_type,
@@ -33,7 +36,7 @@ def to_dict_prop(prop, mongo_detail: Optional[PropertyDetails]):
     return d
 
 async def get_properties(
-    db: Session,
+    db: AsyncSession,
     city: Optional[str] = None,
     property_type: Optional[str] = None,
     min_rent: Optional[float] = None,
@@ -41,7 +44,7 @@ async def get_properties(
     available: Optional[bool] = None,
     sort: str = "newest",
 ):
-    query = db.query(Property).filter(Property.status == 'PUBLISHED')
+    query = select(Property).filter(Property.status == 'PUBLISHED')
 
     if city:
         query = query.filter(Property.city.ilike(city))
@@ -61,26 +64,95 @@ async def get_properties(
     else:
         query = query.order_by(desc(Property.created_at))
 
-    properties = query.all()
+    result = await db.execute(query)
+    properties = result.scalars().all()
+    if not properties:
+        return []
 
-    result = []
+    owner_ids = list(set(prop.owner_id for prop in properties))
+    if owner_ids:
+        res = await db.execute(select(User).filter(User.id.in_(owner_ids)))
+        owners = res.scalars().all()
+        owner_map = {owner.id: owner for owner in owners}
+    else:
+        owner_map = {}
+
+    property_ids = [str(prop.id) for prop in properties]
+    details = await PropertyDetails.find(In(PropertyDetails.property_id, property_ids)).to_list()
+    details_map = {detail.property_id: detail for detail in details}
+
+    out = []
     for prop in properties:
-        detail = await PropertyDetails.find_one(PropertyDetails.property_id == str(prop.id))
-        result.append(to_dict_prop(prop, detail))
-    
-    return result
+        detail = details_map.get(str(prop.id))
+        owner = owner_map.get(prop.owner_id)
+        out.append(to_dict_prop(prop, detail, owner))
+    return out
 
-async def get_property(property_id: str, db: Session):
-    prop = db.query(Property).filter(Property.id == property_id).first()
+async def get_my_properties(user_id: str, db: AsyncSession):
+    result = await db.execute(select(Property).filter(Property.owner_id == int(user_id)).order_by(desc(Property.created_at)))
+    properties = result.scalars().all()
+    if not properties:
+        return []
+        
+    owner_ids = list(set(prop.owner_id for prop in properties))
+    if owner_ids:
+        res = await db.execute(select(User).filter(User.id.in_(owner_ids)))
+        owners = res.scalars().all()
+        owner_map = {owner.id: owner for owner in owners}
+    else:
+        owner_map = {}
+
+    property_ids = [str(prop.id) for prop in properties]
+    details = await PropertyDetails.find(In(PropertyDetails.property_id, property_ids)).to_list()
+    details_map = {detail.property_id: detail for detail in details}
+
+    out = []
+    for prop in properties:
+        detail = details_map.get(str(prop.id))
+        owner = owner_map.get(prop.owner_id)
+        out.append(to_dict_prop(prop, detail, owner))
+    return out
+
+async def get_all_properties_admin(db: AsyncSession):
+    result = await db.execute(select(Property).order_by(desc(Property.created_at)))
+    properties = result.scalars().all()
+    if not properties:
+        return []
+        
+    owner_ids = list(set(prop.owner_id for prop in properties))
+    if owner_ids:
+        res = await db.execute(select(User).filter(User.id.in_(owner_ids)))
+        owners = res.scalars().all()
+        owner_map = {owner.id: owner for owner in owners}
+    else:
+        owner_map = {}
+
+    property_ids = [str(prop.id) for prop in properties]
+    details = await PropertyDetails.find(In(PropertyDetails.property_id, property_ids)).to_list()
+    details_map = {detail.property_id: detail for detail in details}
+
+    out = []
+    for prop in properties:
+        detail = details_map.get(str(prop.id))
+        owner = owner_map.get(prop.owner_id)
+        out.append(to_dict_prop(prop, detail, owner))
+    return out
+
+async def get_property(property_id: str, db: AsyncSession):
+    result = await db.execute(select(Property).filter(Property.id == int(property_id)))
+    prop = result.scalars().first()
     if not prop:
         raise HTTPException(404, "Property not found")
 
     detail = await PropertyDetails.find_one(PropertyDetails.property_id == str(prop.id))
-    return to_dict_prop(prop, detail)
+    
+    res = await db.execute(select(User).filter(User.id == prop.owner_id))
+    owner = res.scalars().first()
+    return to_dict_prop(prop, detail, owner)
 
-async def create_property(body: PropertyCreate, user_id: str, db: Session):
+async def create_property(body: PropertyCreate, user_id: str, db: AsyncSession):
     new_prop = Property(
-        owner_id=user_id,
+        owner_id=int(user_id),
         title=body.title,
         city=body.city,
         property_type=body.property_type,
@@ -88,9 +160,14 @@ async def create_property(body: PropertyCreate, user_id: str, db: Session):
         bathrooms=body.bathrooms,
         monthly_rent=body.monthly_rent
     )
-    db.add(new_prop)
-    db.commit()
-    db.refresh(new_prop)
+    try:
+        db.add(new_prop)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+        
+    await db.refresh(new_prop)
 
     detail = PropertyDetails(
         property_id=str(new_prop.id),
@@ -101,10 +178,11 @@ async def create_property(body: PropertyCreate, user_id: str, db: Session):
     )
     await detail.insert()
 
-    return {"message": "Property created (status: PENDING, awaiting admin approval)", "property": to_dict_prop(new_prop, detail)}
+    return {"message": "Property created (status: PENDING, awaiting admin approval)", "property_id": str(new_prop.id)}
 
-async def update_property(property_id: str, body: PropertyUpdate, user_id: str, roles: list, db: Session):
-    prop = db.query(Property).filter(Property.id == property_id).first()
+async def update_property(property_id: str, body: PropertyUpdate, user_id: str, roles: list, db: AsyncSession):
+    result = await db.execute(select(Property).filter(Property.id == int(property_id)))
+    prop = result.scalars().first()
     if not prop:
         raise HTTPException(404, "Property not found")
 
@@ -127,8 +205,12 @@ async def update_property(property_id: str, body: PropertyUpdate, user_id: str, 
         if body.reason:
             prop.reason = body.reason
 
-    db.commit()
-    db.refresh(prop)
+    try:
+        await db.commit()
+        await db.refresh(prop)
+    except Exception:
+        await db.rollback()
+        raise
 
     detail = await PropertyDetails.find_one(PropertyDetails.property_id == property_id)
     if not detail:
@@ -142,7 +224,7 @@ async def update_property(property_id: str, body: PropertyUpdate, user_id: str, 
     
     await detail.save()
 
-    return {"message": "Property updated", "property": to_dict_prop(prop, detail)}
+    return {"message": "Property updated", "property_id": str(prop.id)}
 
 async def save_property_images(property_id: str, urls: list):
     detail = await PropertyDetails.find_one(PropertyDetails.property_id == property_id)
@@ -153,8 +235,9 @@ async def save_property_images(property_id: str, urls: list):
     detail.image_urls.extend(urls)
     await detail.save()
 
-async def delete_property(property_id: str, user_id: str, roles: list, db: Session):
-    prop = db.query(Property).filter(Property.id == property_id).first()
+async def delete_property(property_id: str, user_id: str, roles: list, db: AsyncSession):
+    result = await db.execute(select(Property).filter(Property.id == int(property_id)))
+    prop = result.scalars().first()
     if not prop:
         raise HTTPException(404, "Property not found")
 
@@ -162,8 +245,12 @@ async def delete_property(property_id: str, user_id: str, roles: list, db: Sessi
         raise HTTPException(403, "You can only delete your own properties")
 
     # Delete PG record (cascades or just deletes)
-    db.delete(prop)
-    db.commit()
+    try:
+        await db.delete(prop)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
 
     # Delete Mongo record
     detail = await PropertyDetails.find_one(PropertyDetails.property_id == property_id)

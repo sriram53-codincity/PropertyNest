@@ -1,5 +1,5 @@
 from beanie import Document
-from typing import List, Optional
+from typing import List
 
 class PropertyDetails(Document):
     property_id: str
