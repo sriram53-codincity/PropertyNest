@@ -14,11 +14,11 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 
 @router.get("/")
 async def get_properties(
-    city:          Optional[str]   = Query(None),
-    property_type: Optional[str]   = Query(None),
-    min_rent:      Optional[float] = Query(None),
-    max_rent:      Optional[float] = Query(None),
-    available:     Optional[bool]  = Query(None),
+    city: Optional[str] = Query(None),
+    property_type: Optional[str] = Query(None),
+    min_rent: Optional[float] = Query(None),
+    max_rent: Optional[float] = Query(None),
+    available: Optional[bool] = Query(None),
     sort:          str             = Query("newest"),
     db: AsyncSession = Depends(get_db)
 ):

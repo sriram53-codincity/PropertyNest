@@ -181,9 +181,11 @@ async def update_application_status(application_id: str, body: ApplicationStatus
                 other.status = "REJECTED"
                 other.reason = "Another applicant was selected"
             
-            # TODO: Auto-create Lease
-            
-            await db.commit()
+            # Auto-create Lease
+            from app.schemas.lease_schema import LeaseCreate
+            from app.services.lease_service import create_lease
+            lease_body = LeaseCreate(application_id=str(application_id))
+            await create_lease(lease_body, user_id, ["SELLER"], db)
             return {"message": "Application approved and lease generated."}
         else:
             app.status = "REJECTED"

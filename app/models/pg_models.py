@@ -113,9 +113,9 @@ class MaintenanceRequest(Base):
     __tablename__ = "maintenance_requests"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lease_id = Column(Integer, ForeignKey("leases.id", ondelete="CASCADE"), index=True)
-    property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), index=True)
-    tenant_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    lease_id = Column(Integer, ForeignKey("property_nest.leases.id", ondelete="CASCADE"), index=True)
+    property_id = Column(Integer, ForeignKey("property_nest.properties.id", ondelete="CASCADE"), index=True)
+    tenant_id = Column(Integer, ForeignKey("property_nest.users.id", ondelete="CASCADE"), index=True)
     title = Column(Text, nullable=False)
     category = Column(Text, nullable=False)
     priority = Column(Text, default="LOW")

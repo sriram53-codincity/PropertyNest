@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.connection import get_db
 from app.auth import get_current_user, require_roles
-from app.schemas.application_schema import ApplicationCreate
+from app.schemas.application_schema import ApplicationCreate, ApplicationResponse
 from app.schemas.common_schema import ApplicationStatusUpdate
 from app.services import application_service
 
 router = APIRouter(prefix="/api/applications", tags=["Applications"])
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 
-@router.post("/", dependencies=[Depends(require_roles("TENANT", "BUYER", "ADMIN"))])
+@router.post("/", response_model=ApplicationResponse, dependencies=[Depends(require_roles("TENANT", "BUYER", "ADMIN"))])
 async def create_application(
     body: ApplicationCreate,
     db: AsyncSession = Depends(get_db),

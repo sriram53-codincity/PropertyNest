@@ -19,3 +19,7 @@ class ApplicationCreate(BaseModel):
     lease_duration:  int               # months
     num_occupants:   int               = 1
     additional_notes: Optional[str]    = None
+
+class ApplicationResponse(BaseModel):
+    message: str
+    application_id: str
