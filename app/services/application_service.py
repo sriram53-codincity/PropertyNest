@@ -131,24 +131,7 @@ async def get_application(application_id: str, db: AsyncSession):
     return app
 
 async def update_application_status(application_id: str, body: ApplicationStatusUpdate, user_id: str, db: AsyncSession):
-    """
-    Update the status of a rental application (Approve/Reject).
-    Approving an application will automatically reject all other pending applications for the same property.
-    
-    Args:
-        application_id (str): The application ID.
-        body (ApplicationStatusUpdate): The status update details.
-        user_id (str): The user ID of the seller/admin updating the status.
-        db (AsyncSession): The database session.
-        
-    Raises:
-        HTTPException 400: If the status is invalid or the application is not PENDING.
-        HTTPException 404: If the application is not found.
-        HTTPException 403: If the user does not own the property.
-        
-    Returns:
-        dict: A success message.
-    """
+
     if body.status not in ("APPROVED", "REJECTED"):
         raise HTTPException(400, "Status must be APPROVED or REJECTED")
     if body.status == "REJECTED" and not body.reason:
