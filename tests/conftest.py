@@ -21,26 +21,34 @@ if os.environ.get("PG_PASSWORD") == "password":
 
 TEST_MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://mathimaran12345678_db_user:9715907196@cluster0.evomuvp.mongodb.net/?appName=Cluster0")
 
-@pytest_asyncio.fixture
-async def db():
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
-    TestingSessionLocal = sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
-    )
+engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+TestingSessionLocal = sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
 
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def setup_db():
     async with engine.begin() as conn:
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS property_nest"))
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-    # Setup Mongo
-    mongo_client = AsyncIOMotorClient(TEST_MONGO_URL)
-    mongo_db = mongo_client.homelease_test
-    await init_beanie(database=mongo_db, document_models=[PropertyDetails])
+    client = AsyncIOMotorClient(TEST_MONGO_URL)
+    db = client.homelease_test
+    await init_beanie(database=db, document_models=[PropertyDetails])
 
-    async with TestingSessionLocal() as session:
+    yield
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+@pytest_asyncio.fixture
+async def db():
+    session = TestingSessionLocal()
+    try:
         yield session
-
-    await engine.dispose()
+    finally:
+        await session.close()
 
 @pytest_asyncio.fixture
 async def client(db: AsyncSession):
