@@ -56,7 +56,7 @@ async def db():
 @pytest_asyncio.fixture
 async def client(db: AsyncSession):
     async def override_get_db():
-        yield db
+        return db
     
     app.dependency_overrides[get_db] = override_get_db
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
