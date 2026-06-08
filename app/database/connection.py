@@ -5,7 +5,6 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from motor.motor_asyncio import AsyncIOMotorClient
 
-# ── PostgreSQL Setup (SQLAlchemy) ──────────────────────────────
 PG_USER = os.getenv("PG_USER", "postgres")
 PG_PASSWORD = urllib.parse.quote_plus(os.getenv("PG_PASSWORD", "password"))
 PG_HOST = os.getenv("PG_HOST", "localhost")
@@ -20,16 +19,12 @@ AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_co
 metadata = MetaData(schema="property_nest")
 Base = declarative_base(metadata=metadata)
 
-# Dependency to get DB session
 async def get_db() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         yield session
 
-# ── MongoDB Setup (Beanie / Motor) ─────────────────────────────
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 MONGO_DB  = os.getenv("MONGO_DB", "homelease")
 
-# We create the motor client, but Beanie initialization 
-# requires an async context, which we will do in main.py
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 mongo_db = mongo_client[MONGO_DB]

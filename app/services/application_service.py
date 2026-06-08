@@ -114,7 +114,6 @@ async def update_application_status(application_id: str, body: ApplicationStatus
         if body.status == "APPROVED":
             app.status = "APPROVED"
             
-            # Reject others
             result = await db.execute(select(Application).filter(
                 Application.property_id == app.property_id,
                 Application.status == 'PENDING',
@@ -125,7 +124,6 @@ async def update_application_status(application_id: str, body: ApplicationStatus
                 other.status = "REJECTED"
                 other.reason = "Another applicant was selected"
             
-            # Auto-create Lease
             from app.schemas.lease_schema import LeaseCreate
             from app.services.lease_service import create_lease
             lease_body = LeaseCreate(application_id=str(application_id))

@@ -244,7 +244,6 @@ async def delete_property(property_id: str, user_id: str, roles: list, db: Async
     if str(prop.owner_id) != user_id and "ADMIN" not in roles:
         raise HTTPException(403, "You can only delete your own properties")
 
-    # Delete PG record (cascades or just deletes)
     try:
         await db.delete(prop)
         await db.commit()
@@ -252,7 +251,6 @@ async def delete_property(property_id: str, user_id: str, roles: list, db: Async
         await db.rollback()
         raise
 
-    # Delete Mongo record
     detail = await PropertyDetails.find_one(PropertyDetails.property_id == property_id)
     if detail:
         await detail.delete()

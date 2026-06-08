@@ -87,7 +87,6 @@ async def update_status(request_id: str, body: SellerRequestStatusUpdate, db: As
         raise HTTPException(400, "Only PENDING requests can be reviewed")
 
     if body.status == "APPROVED":
-        # Add SELLER role if not exists
         res_role = await db.execute(select(UserRole).filter(UserRole.user_id == req.user_id, UserRole.role == 'SELLER'))
         existing_role = res_role.scalars().first()
         
@@ -110,7 +109,6 @@ async def update_status(request_id: str, body: SellerRequestStatusUpdate, db: As
             
             req.status = 'APPROVED'
             
-            # Create MongoDB Details
             images = req.image_urls or []
             detail = PropertyDetails(
                 property_id=str(new_prop.id),
