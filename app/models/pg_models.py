@@ -15,7 +15,6 @@ class User(Base):
 
     roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
 
-
 class UserRole(Base):
     __tablename__ = "user_roles"
 
@@ -24,7 +23,6 @@ class UserRole(Base):
     role = Column(Text, nullable=False)
 
     user = relationship("User", back_populates="roles")
-
 
 class SellerRequest(Base):
     __tablename__ = "seller_requests"
@@ -49,7 +47,6 @@ class SellerRequest(Base):
     reason = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
 
-
 class Property(Base):
     __tablename__ = "properties"
 
@@ -66,7 +63,6 @@ class Property(Base):
     is_available = Column(Boolean, default=True)
     reason = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
-
 
 class Application(Base):
     __tablename__ = "applications"
@@ -93,7 +89,6 @@ class Application(Base):
     reason = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
 
-
 class Lease(Base):
     __tablename__ = "leases"
 
@@ -107,7 +102,6 @@ class Lease(Base):
     monthly_rent = Column(Numeric, nullable=False)
     status = Column(Text, default="ACTIVE", index=True)
     created_at = Column(DateTime, server_default=func.now())
-
 
 class MaintenanceRequest(Base):
     __tablename__ = "maintenance_requests"
@@ -127,7 +121,6 @@ class MaintenanceRequest(Base):
     comment = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
 
 class Appointment(Base):
     __tablename__ = "appointments"

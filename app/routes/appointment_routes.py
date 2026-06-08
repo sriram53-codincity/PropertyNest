@@ -14,7 +14,6 @@ async def book_appointment(body: AppointmentCreate, current_user: dict = Depends
     user_id = current_user["user_id"]
     return await appointment_service.book_appointment(body, user_id, db)
 
-
 @router.get("/mine")
 async def my_appointments(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await appointment_service.get_my_appointments(current_user["user_id"], db)
@@ -31,7 +30,6 @@ async def all_appointments(
 ):
     return await appointment_service.get_all_appointments(status, db)
 
-
 @router.patch("/{appointment_id}/status")
 async def update_appointment_status(
     appointment_id: str,
@@ -47,5 +45,5 @@ async def delete_appointment(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """USER: Cancel/delete your pending appointment."""
+    
     return await appointment_service.delete_appointment(appointment_id, current_user["user_id"], db)

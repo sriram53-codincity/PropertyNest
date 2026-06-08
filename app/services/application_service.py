@@ -6,22 +6,7 @@ from app.schemas.application_schema import ApplicationCreate
 from app.schemas.common_schema import ApplicationStatusUpdate
 
 async def create_application(body: ApplicationCreate, user_id: str, db: AsyncSession):
-    """
-    Submit a rental application for a property.
-    
-    Args:
-        body (ApplicationCreate): The application details.
-        user_id (str): The applicant's user ID.
-        db (AsyncSession): The database session.
-        
-    Raises:
-        HTTPException 404: If the property is not found.
-        HTTPException 400: If the property is not available or if already applied.
-        
-    Returns:
-        dict: A message and the application ID.
-    """
-    
+
     result = await db.execute(select(Property).filter(Property.id == int(body.property_id)))
     prop = result.scalars().first()
     
@@ -72,19 +57,7 @@ async def create_application(body: ApplicationCreate, user_id: str, db: AsyncSes
     return {"message": "Application submitted", "application_id": str(new_app.id)}
 
 async def get_applications(user_id: str, roles: list, db: AsyncSession):
-    """
-    List applications relevant to the current user.
-    If the user has SELLER role, lists applications for their properties as well as their own applications.
-    Otherwise, lists only their own applications.
     
-    Args:
-        user_id (str): The user ID.
-        roles (list): The user's roles.
-        db (AsyncSession): The database session.
-        
-    Returns:
-        list: A list of applications with property titles.
-    """
     query = select(Application, Property.title.label("property_title"), User.full_name.label("owner_name"))\
         .join(Property, Application.property_id == Property.id)\
         .join(User, Property.owner_id == User.id)
@@ -111,19 +84,7 @@ async def get_applications(user_id: str, roles: list, db: AsyncSession):
     return apps
 
 async def get_application(application_id: str, db: AsyncSession):
-    """
-    Retrieve details of a single rental application.
     
-    Args:
-        application_id (str): The application ID.
-        db (AsyncSession): The database session.
-        
-    Raises:
-        HTTPException 404: If the application is not found.
-        
-    Returns:
-        Application: The application object.
-    """
     result = await db.execute(select(Application).filter(Application.id == int(application_id)))
     app = result.scalars().first()
     if not app:
@@ -180,22 +141,7 @@ async def update_application_status(application_id: str, body: ApplicationStatus
         raise
 
 async def delete_application(application_id: str, user_id: str, db: AsyncSession):
-    """
-    Delete a pending rental application.
     
-    Args:
-        application_id (str): The application ID.
-        user_id (str): The user ID of the applicant.
-        db (AsyncSession): The database session.
-        
-    Raises:
-        HTTPException 404: If the application is not found.
-        HTTPException 403: If the user does not own the application.
-        HTTPException 400: If the application is not PENDING.
-        
-    Returns:
-        dict: A success message.
-    """
     result = await db.execute(select(Application).filter(Application.id == int(application_id)))
     app = result.scalars().first()
     if not app:
@@ -214,20 +160,7 @@ async def delete_application(application_id: str, user_id: str, db: AsyncSession
     return {"message": "Application deleted successfully"}
 
 async def save_application_document(application_id: str, url: str, db: AsyncSession):
-    """
-    Save the uploaded government ID document URL to the application.
     
-    Args:
-        application_id (str): The application ID.
-        url (str): The uploaded document URL.
-        db (AsyncSession): The database session.
-        
-    Raises:
-        HTTPException 404: If the application is not found.
-        
-    Returns:
-        dict: A success message and the URL.
-    """
     result = await db.execute(select(Application).filter(Application.id == int(application_id)))
     app = result.scalars().first()
     if not app:

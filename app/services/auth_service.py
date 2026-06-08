@@ -7,19 +7,7 @@ from app.auth import hash_password, verify_password, create_token
 from app.schemas.auth_schema import RegisterBody, LoginBody
 
 async def register_user(body: RegisterBody, db: AsyncSession):
-    """
-    Registers a new user in the system.
-
-    Args:
-        body (RegisterBody): The user registration details.
-        db (AsyncSession): The database session.
-
-    Raises:
-        HTTPException 400: If passwords do not match or email is already registered.
-
-    Returns:
-        dict: A success message and the new user's ID.
-    """
+    
     if body.password != body.confirm_password:
         raise HTTPException(400, "Passwords do not match")
 
@@ -49,19 +37,7 @@ async def register_user(body: RegisterBody, db: AsyncSession):
     return {"message": "Registered successfully", "user_id": str(new_user.id)}
 
 async def login_user(body: LoginBody, db: AsyncSession):
-    """
-    Authenticates a user and returns a JWT token.
-
-    Args:
-        body (LoginBody): The user's login credentials.
-        db (AsyncSession): The database session.
-
-    Raises:
-        HTTPException 401: If invalid email or password provided.
-
-    Returns:
-        dict: The access token, token type, and user roles.
-    """
+    
     result = await db.execute(select(User).options(selectinload(User.roles)).filter(User.email == body.email))
     user = result.scalars().first()
 
@@ -74,19 +50,7 @@ async def login_user(body: LoginBody, db: AsyncSession):
     return {"access_token": token, "token_type": "bearer", "roles": roles}
 
 async def get_current_user_profile(user_id: str, db: AsyncSession):
-    """
-    Retrieves the profile of the current authenticated user.
-
-    Args:
-        user_id (str): The ID of the user.
-        db (AsyncSession): The database session.
-
-    Raises:
-        HTTPException 404: If the user is not found.
-
-    Returns:
-        dict: User profile information.
-    """
+    
     result = await db.execute(select(User).options(selectinload(User.roles)).filter(User.id == int(user_id)))
     user = result.scalars().first()
 

@@ -52,7 +52,7 @@ async def upload_document(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """BUYER: Upload a payslip or ID document for the application."""
+    
     folder = os.path.join(UPLOAD_DIR, "application_documents", application_id)
     os.makedirs(folder, exist_ok=True)
 

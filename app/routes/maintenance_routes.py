@@ -18,9 +18,8 @@ async def raise_request(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """TENANT: Raise a maintenance request via JSON."""
+    
     return await maintenance_service.raise_request(body, current_user["user_id"], db)
-
 
 @router.post("/{request_id}/images")
 async def upload_maintenance_images(
@@ -46,7 +45,6 @@ async def upload_maintenance_images(
 
     return await maintenance_service.upload_images(request_id, image_urls, db)
 
-
 @router.get("/")
 async def list_requests(
     property_id: Optional[str] = Query(None),
@@ -56,16 +54,14 @@ async def list_requests(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """List maintenance requests. Filters: property_id, lease_id, status."""
+    
     return await maintenance_service.list_requests(
         property_id, lease_id, status, as_admin, current_user["user_id"], current_user.get("roles", []), db
     )
 
-
 @router.get("/{request_id}")
 async def get_request(request_id: str, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await maintenance_service.get_request(request_id, db)
-
 
 @router.patch("/{request_id}/status")
 async def update_status(
@@ -74,7 +70,7 @@ async def update_status(
     current_user: dict = Depends(require_roles("SELLER", "ADMIN")),
     db: AsyncSession = Depends(get_db)
 ):
-    """SELLER: Update the status of a maintenance request with a comment."""
+    
     return await maintenance_service.update_status(request_id, body, db)
 
 @router.delete("/{request_id}")
@@ -83,5 +79,5 @@ async def delete_request(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """TENANT: Cancel/delete your maintenance request."""
+    
     return await maintenance_service.delete_request(request_id, current_user["user_id"], db)

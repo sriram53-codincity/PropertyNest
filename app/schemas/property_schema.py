@@ -13,7 +13,7 @@ class PropertyCreate(BaseModel):
     amenities:     Optional[List[str]] = []
 
 class PropertyUpdate(BaseModel):
-    """All fields are optional — only send what you want to change."""
+    
     title:         Optional[str]   = None
     city:          Optional[str]   = None
     property_type: Optional[str]   = None

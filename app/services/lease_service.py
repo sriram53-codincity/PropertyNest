@@ -7,23 +7,7 @@ from app.models.pg_models import Lease, Application, Property, User
 from app.schemas.lease_schema import LeaseCreate
 
 async def create_lease(body: LeaseCreate, user_id: str, roles: list, db: AsyncSession):
-    """
-    Create a new lease for an approved rental application.
     
-    Args:
-        body (LeaseCreate): The lease creation details.
-        user_id (str): The current user's ID.
-        roles (list): The current user's roles.
-        db (AsyncSession): The database session.
-        
-    Raises:
-        HTTPException 404: If the application or property is not found.
-        HTTPException 400: If the application is not approved or a lease already exists.
-        HTTPException 403: If the user does not own the property.
-        
-    Returns:
-        dict: A message and the newly created lease ID.
-    """
     result = await db.execute(select(Application).filter(Application.id == int(body.application_id)))
     app = result.scalars().first()
     
@@ -70,18 +54,8 @@ async def create_lease(body: LeaseCreate, user_id: str, roles: list, db: AsyncSe
     await db.refresh(new_lease)
     return {"message": "Lease created successfully", "lease_id": str(new_lease.id)}
 
-
 async def get_my_leases(user_id: str, db: AsyncSession):
-    """
-    Retrieve all leases where the user is either the tenant or the owner.
     
-    Args:
-        user_id (str): The current user's ID.
-        db (AsyncSession): The database session.
-        
-    Returns:
-        list: A list of lease details.
-    """
     Tenant = aliased(User)
     Owner = aliased(User)
 
@@ -116,24 +90,8 @@ async def get_my_leases(user_id: str, db: AsyncSession):
     
     return leases
 
-
 async def get_lease(lease_id: str, user_id: str, roles: list, db: AsyncSession):
-    """
-    Retrieve the details of a single lease.
     
-    Args:
-        lease_id (str): The ID of the lease.
-        user_id (str): The current user's ID.
-        roles (list): The current user's roles.
-        db (AsyncSession): The database session.
-        
-    Raises:
-        HTTPException 404: If the lease is not found.
-        HTTPException 403: If the user is neither the tenant nor the owner of the lease.
-        
-    Returns:
-        dict: The lease details.
-    """
     Tenant = aliased(User)
     Owner = aliased(User)
 

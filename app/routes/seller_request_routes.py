@@ -12,7 +12,6 @@ router = APIRouter(prefix="/api/seller-requests", tags=["Seller Requests"])
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 
-
 @router.post("/")
 async def create_seller_request(
     full_name:        str         = Form(...),
@@ -56,11 +55,9 @@ async def create_seller_request(
         property_type, bedrooms, monthly_rent, description, doc_type, declaration_accepted, doc_url, [image_url], db
     )
 
-
 @router.get("/mine")
 async def my_requests(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await seller_request_service.get_my_requests(current_user["user_id"], db)
-
 
 @router.get("/")
 async def all_requests(
@@ -69,7 +66,6 @@ async def all_requests(
     db: AsyncSession = Depends(get_db)
 ):
     return await seller_request_service.get_all_requests(status, db)
-
 
 @router.patch("/{request_id}/status")
 async def update_status(
@@ -86,5 +82,5 @@ async def delete_request(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """USER: Cancel/delete your pending seller request."""
+    
     return await seller_request_service.delete_request(request_id, current_user["user_id"], db)

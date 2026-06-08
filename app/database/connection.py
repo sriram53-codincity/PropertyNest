@@ -25,7 +25,6 @@ async def get_db() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         yield session
 
-
 # ── MongoDB Setup (Beanie / Motor) ─────────────────────────────
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 MONGO_DB  = os.getenv("MONGO_DB", "homelease")
