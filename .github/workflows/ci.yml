@@ -46,7 +46,7 @@ jobs:
         
     - name: Run Tests
       env:
-        SECRET_KEY: test-secret-key
+        SECRET_KEY: this-is-a-test-secret-key-that-is-long-enough-for-jwt
         MONGO_URL: mongodb://localhost:27017/homelease_test
         MONGO_DB: homelease_test
         PG_HOST: localhost

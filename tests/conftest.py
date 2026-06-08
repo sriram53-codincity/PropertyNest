@@ -21,43 +21,32 @@ if os.environ.get("PG_PASSWORD") == "password":
 
 TEST_MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://mathimaran12345678_db_user:9715907196@cluster0.evomuvp.mongodb.net/?appName=Cluster0")
 
-engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
-TestingSessionLocal = sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
-
-@pytest.fixture(scope="session")
-def anyio_backend():
-    return "asyncio"
-
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_db():
-    async with engine.begin() as conn:
-        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS property_nest"))
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-    
-    # Setup Mongo
-    client = AsyncIOMotorClient(TEST_MONGO_URL)
-    db = client.homelease_test
-    await init_beanie(database=db, document_models=[PropertyDetails])
-
-    yield
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await client.drop_database('homelease_test')
-
 @pytest_asyncio.fixture
 async def db():
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+    TestingSessionLocal = sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS property_nest"))
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Setup Mongo
+    mongo_client = AsyncIOMotorClient(TEST_MONGO_URL)
+    mongo_db = mongo_client.homelease_test
+    await init_beanie(database=mongo_db, document_models=[PropertyDetails])
+
     async with TestingSessionLocal() as session:
         yield session
+
+    await engine.dispose()
 
 @pytest_asyncio.fixture
 async def client(db: AsyncSession):
     async def override_get_db():
-        return db
-    
+        yield db
+
     app.dependency_overrides[get_db] = override_get_db
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
